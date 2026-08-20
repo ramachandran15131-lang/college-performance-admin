@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dairy Pulse — Milk Business Analytics</title>
+<style>
+  :root{
+    --bg:#0E1512;
+    --surface:#141E1A;
+    --surface-alt:#1B2823;
+    --line:#26362F;
+    --cream:#F4F0E4;
+    --text-dim:#8FA096;
+    --sage:#9FC9A8;
+    --sage-bright:#C7E8CE;
+    --butter:#E8C468;
+    --terracotta:#E0825C;
+    --radius:14px;
+    --font-display: Georgia, 'Times New Roman', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'Courier New', monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--cream);
+    font-family:var(--font-body);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  /* subtle texture */
+  body::before{
+    content:'';
+    position:fixed;inset:0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(159,201,168,0.05) 1px, transparent 0);
+    background-size: 24px 24px;
+    pointer-events:none;
+    z-index:0;
+  }
+  .app{display:flex;min-height:100vh;position:relative;z-index:1;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:240px;flex-shrink:0;
+    background:var(--surface);
+    border-right:1px solid var(--line);
+    padding:28px 20px;
+    display:flex;flex-direction:column;
+    gap:32px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:34px;height:34px;border-radius:50% 50% 50% 4px;
+    background:linear-gradient(160deg, var(--sage-bright), var(--sage));
+    flex-shrink:0;
+  }
+  .brand-name{font-family:var(--font-display);font-size:19px;letter-spacing:0.3px;}
+  .brand-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px;}
+
+  nav{display:flex;flex-direction:column;gap:4px;}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 12px;border-radius:8px;
+    color:var(--text-dim);font-size:13.5px;cursor:pointer;
+    border:1px solid transparent;
+    transition:background .15s, color .15s;
+  }
+  .nav-item svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.6;}
+  .nav-item:hover{color:var(--cream);background:rgba(159,201,168,0.06);}
+  .nav-item.active{
+    color:var(--sage-bright);
+    background:rgba(159,201,168,0.1);
+    border-color:rgba(159,201,168,0.25);
+  }
+  .sidebar-foot{margin-top:auto;font-size:11px;color:var(--text-dim);line-height:1.6;border-top:1px solid var(--line);padding-top:16px;}
+
+  /* ---------- Main ---------- */
+  .main{flex:1;padding:28px 36px 60px;min-width:0;}
+  .topbar{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    flex-wrap:wrap;gap:16px;
+    margin-bottom:28px;
+  }
+  .topbar h1{font-family:var(--font-display);font-size:26px;font-weight:400;}
+  .topbar p{color:var(--text-dim);font-size:13px;margin-top:4px;}
+  .controls{display:flex;gap:10px;align-items:center;}
+  select, .btn{
+    background:var(--surface-alt);
+    border:1px solid var(--line);
+    color:var(--cream);
+    padding:9px 14px;border-radius:8px;
+    font-size:13px;font-family:var(--font-body);
+    cursor:pointer;
+  }
+  select:focus, .btn:focus{outline:2px solid var(--sage);outline-offset:1px;}
+  .btn-primary{background:var(--sage);color:#0E1512;border-color:var(--sage);font-weight:600;}
+  .btn-primary:hover{background:var(--sage-bright);}
+  .btn:hover{border-color:var(--sage);}
+
+  /* ---------- KPI bottles ---------- */
+  .kpi-row{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;margin-bottom:28px;
+  }
+  .kpi-card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    display:flex;gap:14px;align-items:center;
+    position:relative;overflow:hidden;
+  }
+  .bottle{
+    width:34px;height:52px;flex-shrink:0;position:relative;
+    border:2px solid var(--line);
+    border-top:none;
+    border-radius:0 0 8px 8px;
+    background:var(--surface-alt);
+    overflow:hidden;
+  }
+  .bottle::before{
+    content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    width:12px;height:8px;background:var(--surface-alt);border:2px solid var(--line);border-bottom:none;
+  }
+  .bottle-fill{
+    position:absolute;bottom:0;left:0;right:0;
+    background:linear-gradient(180deg, var(--sage-bright), var(--sage));
+    height:0%;
+    transition:height 1.1s cubic-bezier(.22,1,.36,1);
+  }
+  .kpi-body{flex:1;min-width:0;}
+  .kpi-label{font-size:11.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;}
+  .kpi-value{font-family:var(--font-display);font-size:24px;margin-top:3px;}
+  .kpi-delta{font-size:12px;margin-top:4px;display:flex;align-items:center;gap:4px;}
+  .up{color:var(--sage-bright);}
+  .down{color:var(--terracotta);}
+
+  /* ---------- Panels ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:1.4fr 1fr;
+    gap:18px;margin-bottom:18px;
+  }
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:20px 22px 18px;
+  }
+  .panel-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  .panel-title{font-family:var(--font-display);font-size:16.5px;}
+  .panel-sub{font-size:11.5px;color:var(--text-dim);}
+  .legend{display:flex;gap:14px;font-size:11.5px;color:var(--text-dim);}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+  table{width:100%;border-collapse:collapse;font-size:12.8px;}
+  th{
+    text-align:left;color:var(--text-dim);font-weight:500;
+    font-size:11px;text-transform:uppercase;letter-spacing:0.6px;
+    padding:8px 10px;border-bottom:1px solid var(--line);
+  }
+  td{padding:10px 10px;border-bottom:1px solid rgba(38,54,47,0.6);}
+  tr:last-child td{border-bottom:none;}
+  .tag{padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:600;letter-spacing:0.3px;}
+  .tag-ok{background:rgba(159,201,168,0.15);color:var(--sage-bright);}
+  .tag-warn{background:rgba(232,196,104,0.15);color:var(--butter);}
+  .tag-bad{background:rgba(224,130,92,0.15);color:var(--terracotta);}
+
+  .stock-bar-row{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:12.5px;}
+  .stock-name{width:92px;flex-shrink:0;color:var(--text-dim);}
+  .stock-track{flex:1;height:8px;background:var(--surface-alt);border-radius:6px;overflow:hidden;}
+  .stock-fill{height:100%;border-radius:6px;transition:width 1s ease;}
+  .stock-val{width:60px;text-align:right;font-family:var(--font-mono);font-size:11.5px;color:var(--text-dim);}
+
+  footer{margin-top:8px;font-size:11px;color:var(--text-dim);text-align:center;}
+
+  @media (max-width:980px){
+    .grid{grid-template-columns:1fr;}
+    .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .sidebar{width:70px;padding:20px 12px;}
+    .brand-name,.brand-sub,.nav-item span,.sidebar-foot{display:none;}
+    .nav-item{justify-content:center;}
+  }
+  @media (max-width:560px){
+    .kpi-row{grid-template-columns:1fr;}
+    .main{padding:20px 16px 40px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important; animation:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <div class="brand-name">Dairy Pulse</div>
+        <div class="brand-sub">Analytics</div>
+      </div>
+    </div>
+    <nav>
+      <div class="nav-item active" data-tab="overview">
+        <svg viewBox="0 0 24 24"><path d="M4 13h4V4H4v9zm6 7h4V4h-4v16zm6-4h4V9h-4v7z"/></svg>
+        <span>Overview</span>
+      </div>
+      <div class="nav-item" data-tab="sales">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Sales</span>
+      </div>
+      <div class="nav-item" data-tab="inventory">
+        <svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8"/></svg>
+        <span>Inventory</span>
+      </div>
+      <div class="nav-item" data-tab="delivery">
+        <svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM6.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg>
+        <span>Delivery</span>
+      </div>
+      <div class="nav-item" data-tab="customers">
+        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        <span>Customers</span>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      Milk operations, at a glance.<br>Data refreshed just now.
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1>Performance Overview</h1>
+        <p id="rangeLabel">Showing last 30 days · Full cream, toned &amp; curd lines</p>
+      </div>
+      <div class="controls">
+        <select id="rangeSelect">
+          <option value="7">Last 7 days</option>
+          <option value="30" selected>Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <button class="btn" id="exportBtn">Export CSV</button>
+        <button class="btn btn-primary" id="refreshBtn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Revenue &amp; Volume Trend</div>
+            <div class="panel-sub">Daily revenue (₹) vs. liters sold</div>
+          </div>
+          <div class="legend">
+            <span><i class="dot" style="background:var(--sage-bright)"></i>Revenue</span>
+            <span><i class="dot" style="background:var(--butter)"></i>Liters</span>
+          </div>
+        </div>
+        <svg id="trendChart" viewBox="0 0 640 220" style="width:100%;height:220px;"></svg>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Delivery Performance</div>
+            <div class="panel-sub">Route completion status today</div>
+          </div>
+        </div>
+        <svg id="donutChart" viewBox="0 0 200 200" style="width:100%;max-width:190px;display:block;margin:0 auto;"></svg>
+        <div class="legend" style="justify-content:center;margin-top:10px;">
+          <span><i class="dot" style="background:var(--sage-bright)"></i>On time</span>
+          <span><i class="dot" style="background:var(--butter)"></i>Delayed</span>
+          <span><i class="dot" style="background:var(--terracotta)"></i>Failed</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Recent Orders</div>
+            <div class="panel-sub">Latest transactions across routes</div>
+          </div>
+        </div>
+        <table>
+          <thead><tr><th>Order</th><th>Customer</th><th>Product</th><th>Qty</th><th>Status</th></tr></thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Stock Levels</div>
+            <div class="panel-sub">Current inventory by product</div>
+          </div>
+        </div>
+        <div id="stockList"></div>
+      </div>
+    </div>
+
+    <footer>Dairy Pulse — internal analytics prototype. All figures are simulated sample data.</footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  // ---------- Sample data generation ----------
+  const rng = (seed => () => { seed = (seed*9301+49297)%233280; return seed/233280; })(42);
+
+  function genDays(n){
+    const days=[];
+    const today = new Date();
+    let baseRevenue = 38000, baseLiters = 1200;
+    for(let i=n-1;i>=0;i--){
+      const d = new Date(today); d.setDate(d.getDate()-i);
+      baseRevenue += (rng()-0.42)*2200;
+      baseLiters += (rng()-0.42)*70;
+      baseRevenue = Math.max(20000, baseRevenue);
+      baseLiters = Math.max(700, baseLiters);
+      days.push({
+        date:d,
+        revenue: Math.round(baseRevenue),
+        liters: Math.round(baseLiters)
+      });
+    }
+    return days;
+  }
+
+  const products = [
+    {name:'Full Cream', stock:72, cap:100},
+    {name:'Toned Milk', stock:41, cap:100},
+    {name:'Skimmed', stock:88, cap:100},
+    {name:'Curd 400g', stock:19, cap:100},
+    {name:'Paneer 200g', stock:56, cap:100},
+    {name:'Ghee 500ml', stock:8, cap:100},
+  ];
+
+  const customers = ['R. Kannan','S. Priya','A. Mohan','K. Divya','V. Suresh','N. Lakshmi','T. Arun','M. Gayathri'];
+  const statuses = [
+    {label:'Delivered', cls:'tag-ok'},
+    {label:'Delayed', cls:'tag-warn'},
+    {label:'Failed', cls:'tag-bad'},
+  ];
+  const prodNames = products.map(p=>p.name);
+
+  function genOrders(n){
+    const rows=[];
+    for(let i=0;i<n;i++){
+      const st = rng();
+      const status = st>0.85 ? statuses[2] : st>0.65 ? statuses[1] : statuses[0];
+      rows.push({
+        id: '#MK-'+(2200+i),
+        customer: customers[Math.floor(rng()*customers.length)],
+        product: prodNames[Math.floor(rng()*prodNames.length)],
+        qty: (1+Math.floor(rng()*4))+' L',
+        status
+      });
+    }
+    return rows;
+  }
+
+  // ---------- Render KPIs ----------
+  function renderKPIs(days){
+    const totalRevenue = days.reduce((s,d)=>s+d.revenue,0);
+    const totalLiters = days.reduce((s,d)=>s+d.liters,0);
+    const activeCustomers = 312 + Math.floor(rng()*40);
+    const successRate = 92 + rng()*6;
+
+    const kpis = [
+      {label:'Total Revenue', value:'₹'+totalRevenue.toLocaleString('en-IN'), pct:78, delta:'+6.4%', up:true},
+      {label:'Liters Sold', value: totalLiters.toLocaleString('en-IN')+' L', pct:64, delta:'+3.1%', up:true},
+      {label:'Active Customers', value: activeCustomers.toLocaleString('en-IN'), pct:52, delta:'+1.8%', up:true},
+      {label:'Delivery Success', value: successRate.toFixed(1)+'%', pct:successRate, delta:'-0.4%', up:false},
+    ];
+
+    const row = document.getElementById('kpiRow');
+    row.innerHTML = kpis.map(k => `
+      <div class="kpi-card">
+        <div class="bottle"><div class="bottle-fill" data-pct="${k.pct}"></div></div>
+        <div class="kpi-body">
+          <div class="kpi-label">${k.label}</div>
+          <div class="kpi-value">${k.value}</div>
+          <div class="kpi-delta ${k.up?'up':'down'}">${k.up?'▲':'▼'} ${k.delta} vs prev.</div>
+        </div>
+      </div>
+    `).join('');
+
+    requestAnimationFrame(()=>{
+      document.querySelectorAll('.bottle-fill').forEach(el=>{
+        el.style.height = el.dataset.pct+'%';
+      });
+    });
+  }
+
+  // ---------- Trend chart (SVG line) ----------
+  function renderTrend(days){
+    const svg = document.getElementById('trendChart');
+    const W=640,H=220,pad=30;
+    const maxRev = Math.max(...days.map(d=>d.revenue));
+    const minRev = Math.min(...days.map(d=>d.revenue));
+    const maxLit = Math.max(...days.map(d=>d.liters));
+    const minLit = Math.min(...days.map(d=>d.liters));
+
+    const x = i => pad + (i/(days.length-1)) * (W-pad*2);
+    const yRev = v => H-pad - ((v-minRev)/(maxRev-minRev||1)) * (H-pad*2);
+    const yLit = v => H-pad - ((v-minLit)/(maxLit-minLit||1)) * (H-pad*2);
+
+    const revPath = days.map((d,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${yRev(d.revenue).toFixed(1)}`).join(' ');
+    const litPath = days.map((d,i)=>`${i===0?'M':'L'}${x(i).toFixed(1)},${yLit(d.liters).toFixed(1)}`).join(' ');
+    const revArea = revPath + ` L${x(days.length-1).toFixed(1)},${H-pad} L${x(0).toFixed(1)},${H-pad} Z`;
+
+    let gridLines = '';
+    for(let i=0;i<=3;i++){
+      const gy = pad + i*(H-pad*2)/3;
+      gridLines += `<line x1="${pad}" y1="${gy.toFixed(1)}" x2="${W-pad}" y2="${gy.toFixed(1)}" stroke="#26362F" stroke-width="1"/>`;
+    }
+
+    svg.innerHTML = `
+      ${gridLines}
+      <path d="${revArea}" fill="rgba(159,201,168,0.12)" stroke="none"/>
+      <path d="${revPath}" fill="none" stroke="#C7E8CE" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      <path d="${litPath}" fill="none" stroke="#E8C468" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" opacity="0.85"/>
+      ${days.map((d,i)=> i%Math.ceil(days.length/6)===0 ? `<text x="${x(i).toFixed(1)}" y="${H-8}" fill="#8FA096" font-size="9.5" text-anchor="middle">${d.date.getDate()}/${d.date.getMonth()+1}</text>` : '').join('')}
+    `;
+  }
+
+  // ---------- Donut chart ----------
+  function renderDonut(){
+    const svg = document.getElementById('donutChart');
+    const data = [
+      {v:78, color:'#C7E8CE'},
+      {v:15, color:'#E8C468'},
+      {v:7,  color:'#E0825C'},
+    ];
+    const total = data.reduce((s,d)=>s+d.v,0);
+    const cx=100, cy=100, r=70, sw=24;
+    let angle = -90;
+    const circumference = 2*Math.PI*r;
+    let paths = '';
+    data.forEach(d=>{
+      const frac = d.v/total;
+      const dash = frac*circumference;
+      paths += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${d.color}" stroke-width="${sw}"
+        stroke-dasharray="${dash.toFixed(1)} ${(circumference-dash).toFixed(1)}"
+        stroke-dashoffset="${(-angle/360*circumference).toFixed(1)}"
+        transform="rotate(-90 ${cx} ${cy})" stroke-linecap="butt"/>`;
+      angle += frac*360;
+    });
+    svg.innerHTML = `
+      ${paths}
+      <circle cx="${cx}" cy="${cy}" r="${r-sw/2-4}" fill="#141E1A"/>
+      <text x="${cx}" y="${cy-4}" fill="#F4F0E4" font-size="26" text-anchor="middle" font-family="Georgia, serif">${data[0].v}%</text>
+      <text x="${cx}" y="${cy+16}" fill="#8FA096" font-size="10.5" text-anchor="middle">on time</text>
+    `;
+  }
+
+  // ---------- Orders table ----------
+  function renderOrders(){
+    const orders = genOrders(7);
+    document.getElementById('ordersBody').innerHTML = orders.map(o=>`
+      <tr>
+        <td style="color:var(--text-dim);font-family:var(--font-mono);font-size:11.5px;">${o.id}</td>
+        <td>${o.customer}</td>
+        <td>${o.product}</td>
+        <td>${o.qty}</td>
+        <td><span class="tag ${o.status.cls}">${o.status.label}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // ---------- Stock list ----------
+  function renderStock(){
+    document.getElementById('stockList').innerHTML = products.map(p=>{
+      const color = p.stock < 20 ? 'var(--terracotta)' : p.stock < 50 ? 'var(--butter)' : 'var(--sage-bright)';
+      return `
+        <div class="stock-bar-row">
+          <div class="stock-name">${p.name}</div>
+          <div class="stock-track"><div class="stock-fill" style="width:${p.stock}%;background:${color}"></div></div>
+          <div class="stock-val">${p.stock}%</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ---------- Export CSV ----------
+  function exportCSV(days){
+    let csv = 'Date,Revenue (INR),Liters Sold\n';
+    days.forEach(d=>{
+      csv += `${d.date.toISOString().slice(0,10)},${d.revenue},${d.liters}\n`;
+    });
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'dairy-pulse-export.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Wire up ----------
+  let currentDays = genDays(30);
+
+  function renderAll(){
+    renderKPIs(currentDays);
+    renderTrend(currentDays);
+    renderDonut();
+    renderOrders();
+    renderStock();
+  }
+
+  document.getElementById('rangeSelect').addEventListener('change', e=>{
+    const n = parseInt(e.target.value,10);
+    currentDays = genDays(n);
+    document.getElementById('rangeLabel').textContent = `Showing last ${n} days · Full cream, toned & curd lines`;
+    renderAll();
+  });
+
+  document.getElementById('refreshBtn').addEventListener('click', ()=>{
+    currentDays = genDays(parseInt(document.getElementById('rangeSelect').value,10));
+    renderAll();
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', ()=> exportCSV(currentDays));
+
+  document.querySelectorAll('.nav-item').forEach(item=>{
+    item.addEventListener('click', ()=>{
+      document.querySelectorAll('.nav-item').forEach(i=>i.classList.remove('active'));
+      item.classList.add('active');
+    });
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
